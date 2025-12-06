@@ -1,17 +1,15 @@
-# Imagen base
 FROM ubuntu:22.04
 
-# Instalar utilidades necesarias
 RUN apt-get update && apt-get install -y \
     curl \
     procps \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
-WORKDIR /app
+WORKDIR /ejercicio-docker-container-actions
 
-# Script simple que imprime información del host y del contenedor
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY entrypoint.sh entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh
+RUN chmod +x entrypoint.sh
 
-CMD ["/app/entrypoint.sh"]
+CMD ["bash", "./entrypoint.sh"]

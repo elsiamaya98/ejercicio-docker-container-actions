@@ -1,7 +1,6 @@
-#!/bin/bash
-
 echo "=== Contenedor en ejecución ==="
 echo "Hostname del contenedor: $(hostname)"
+
 echo "Usuarios en el contenedor:"
 whoami
 
