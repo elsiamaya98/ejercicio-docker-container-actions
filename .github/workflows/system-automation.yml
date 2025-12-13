@@ -1,0 +1,38 @@
+name: System Automation
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  run-scripts:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    env:
+      APP_NAME: "SystemAutomation"
+      VERSION: "1.0.0"
+      MY_SECRET: ${{ secrets.API_KEY }}  # ejemplo de secret
+
+    steps:
+      - name: 📥 Checkout del código
+        uses: actions/checkout@v3
+
+      - name: 🔧 Ejecutar script según SO
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            chmod +x scripts/script-linux.sh
+            ./scripts/script-linux.sh
+          else
+            ./scripts/script-windows.ps1
+          fi
+
+      - name: 📤 Subir artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: salida-${{ matrix.os }}
+          path: archivo_salida.txt
