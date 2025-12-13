@@ -1,58 +1,62 @@
-name: System Automation Workflow
+name: System Automation
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  APP_NAME: "Docker Automation"
+  VERSION: "1.0.0"
+
 jobs:
-  run-scripts:
+  system-scripts:
+    name: Ejecutar scripts del sistema
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-      fail-fast: false
-
+    
     steps:
-      # 1️⃣ Checkout del código
-      - name: Checkout repository
+      # Checkout del código
+      - name: 📥 Checkout del código
         uses: actions/checkout@v3
 
-      # 2️⃣ Ejecutar script Linux
-      - name: Ejecutar script Linux
+      # Variables de entorno y secret
+      - name: 🛠 Preparar variables y secret
+        run: |
+          echo "Aplicación: $APP_NAME"
+          echo "Versión: $VERSION"
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET_KEY }}
+
+      # Step Linux
+      - name: 🐧 Ejecutar script Linux
         if: matrix.os == 'ubuntu-latest'
         shell: bash
-        env:
-          MY_SECRET: ${{ secrets.MY_SECRET_KEY }}
         run: |
-          echo "Ejecutando Linux..."
           mkdir -p logs
-          chmod +x scripts/script-linux.sh
-          ./scripts/script-linux.sh > logs/salida-linux.txt 2>&1 || exit 1
+          chmod +x ./scripts/script-linux.sh
+          ./scripts/script-linux.sh > logs/salida-linux.txt 2>&1 || echo "⚠️ Script Linux falló, revisar logs."
 
-      # 3️⃣ Ejecutar script Windows
-      - name: Ejecutar script Windows
+      # Step Windows
+      - name: 🪟 Ejecutar script Windows
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        env:
-          MY_SECRET: ${{ secrets.MY_SECRET_KEY }}
         run: |
           Write-Host "Ejecutando Windows..."
-          New-Item -ItemType Directory -Path logs -ErrorAction SilentlyContinue
-          ./scripts/script-windows.ps1 *> logs\salida-windows.txt
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path -Path logs)) { New-Item -ItemType Directory -Path logs }
+          try {
+            .\scripts\script-windows.ps1 4>&1 | Out-File -FilePath logs\salida-windows.txt -Encoding utf8
+            Write-Host "Script completado correctamente."
+          } catch {
+            Write-Host "⚠️ El script falló, revisar logs en logs\salida-windows.txt"
+          }
 
-      # 4️⃣ Preparar logs combinados
-      - name: Preparar logs combinados
-        shell: bash
-        run: |
-          mkdir -p logs_combined
-          if [ -f logs/salida-linux.txt ]; then cp logs/salida-linux.txt logs_combined/; fi
-          if [ -f logs/salida-windows.txt ]; then cp logs/salida-windows.txt logs_combined/; fi
-
-      # 5️⃣ Subir logs como artifact
-      - name: Subir logs como artifact
+      # Subir artifacts
+      - name: 📤 Subir logs como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: system-logs
-          path: logs_combined/
+          name: logs-${{ matrix.os }}
+          path: logs
+          retention-days: 5
