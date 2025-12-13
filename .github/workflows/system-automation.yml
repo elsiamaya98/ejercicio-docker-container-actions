@@ -1,4 +1,4 @@
-name: System Automation
+name: System Automation Workflow
 
 on:
   push:
@@ -7,32 +7,49 @@ on:
 
 jobs:
   run-scripts:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-
-    env:
-      APP_NAME: "SystemAutomation"
-      VERSION: "1.0.0"
-      MY_SECRET: ${{ secrets.API_KEY }}  # ejemplo de secret
+      fail-fast: false
 
     steps:
-      - name: 📥 Checkout del código
+      # 1️⃣ Checkout del código
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🔧 Ejecutar script según SO
-        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
+      # 2️⃣ Ejecutar script Linux
+      - name: Ejecutar script Linux
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET_KEY }}
         run: |
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            chmod +x scripts/script-linux.sh
-            ./scripts/script-linux.sh
-          else
-            ./scripts/script-windows.ps1
-          fi
+          echo "Ejecutando Linux..."
+          mkdir -p logs
+          chmod +x scripts/script-linux.sh
+          ./scripts/script-linux.sh > logs/salida-linux.txt 2>&1
 
-      - name: 📤 Subir artifacts
+      # 3️⃣ Ejecutar script Windows
+      - name: Ejecutar script Windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          MY_SECRET: ${{ secrets.MY_SECRET_KEY }}
+        run: |
+          Write-Host "Ejecutando Windows..."
+          New-Item -ItemType Directory -Path logs -ErrorAction SilentlyContinue
+          ./scripts/script-windows.ps1 *> logs\salida-windows.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # 4️⃣ Subir logs combinados como artifact
+      - name: Subir logs como artifact
+        shell: bash
+        run: |
+          mkdir -p logs_combined
+          if [ -f logs/salida-linux.txt ]; then cp logs/salida-linux.txt logs_combined/; fi
+          if [ -f logs/salida-windows.txt ]; then cp logs/salida-windows.txt logs_combined/; fi
         uses: actions/upload-artifact@v4
         with:
-          name: salida-${{ matrix.os }}
-          path: archivo_salida.txt
+          name: system-logs
+          path: logs_combined/
